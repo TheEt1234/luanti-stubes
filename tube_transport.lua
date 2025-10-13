@@ -1,11 +1,11 @@
--- Items are transferred 1 item/update
+-- Items are transferred 1 item/update... unless you change it i guess
 
 local h, uh = core.hash_node_position, core.get_position_from_hash
 
----@class stube.TubedItem:table
+---@class stube.TubedItem: table
 ---@field stack core.ItemStack
 ---@field owner? string
----@field entity? core.Entity
+---@field entity? core.EntityRef
 
 --- The state of any active tube
 --- The node underneeth a tube state can be anything, and it can change at any time
@@ -27,23 +27,6 @@ core.register_on_mods_loaded(function()
         stubes[name] = {}
     end
 end)
-
----@param wallmounted integer
-function stube.opposite_wallmounted(wallmounted)
-    return core.dir_to_wallmounted(-core.wallmounted_to_dir(wallmounted))
-end
-
----@return ivec
-function stube.tube_state_connection_to_dir(connection)
-    if connection == 6 then
-        return vector.zero() -- The center
-    end
-    return core.wallmounted_to_dir(connection)
-end
-
-function stube.get_precise_connection_pos(pos, connection)
-    return vector.add(pos, stube.tube_state_connection_to_dir(connection) / 3)
-end
 
 ---@param dir number|nil
 local function move_entity(ent, pos, dir)
@@ -72,28 +55,7 @@ end
 
 local IG = core.get_item_group
 
---- Transfer items to foreign nodes (pipeworks receivers)
-function stube.transfer_items(tube_state, transfer_to_node, transfer_to_pos, tube_dir)
-    local next_node_def = core.registered_nodes[transfer_to_node.name]
-    if not (next_node_def.tube and next_node_def.tube.insert_object) then return false end
-
-    local connection = tube_state.connections[tube_dir]
-    if not connection then return end
-
-    local vel = table.copy(core.wallmounted_to_dir(tube_dir))
-    vel.speed = 1
-
-    connection.stack = next_node_def.tube.insert_object(
-        transfer_to_pos,
-        transfer_to_node,
-        connection.stack,
-        vel,
-        connection.owner or ''
-    )
-    if connection.stack == nil or connection.stack:is_empty() then delete_connection(tube_state, tube_dir) end
-end
-
--- Every item gets pushed to the center (in a set order, even if random would make more sense), center gets pushed to tube dir, tube dir item get transported
+-- Every item gets pushed to the center (in a set order, even if random order makes more sense), center gets pushed to tube dir, tube dir item get transported
 ---@param tube_state stube.TubeState
 local function inter_tube_transport(tube_state, tube_dir, tube_vpos, is_short, already_transported_to_center)
     local connections = tube_state.connections
@@ -210,39 +172,36 @@ function stube.update_tube(tube_hpos, tube_def, tube_state, prefix)
 
     local tube_dir = stube.get_tube_dir(this_node.name)
 
-    if tube_state.connections[tube_dir] ~= nil then
-        local next_pos, next_node = tube_def.get_next_pos_and_node(tube_hpos, tube_state, tube_dir)
+    local next_pos, next_node = tube_def.get_next_pos_and_node(tube_hpos, tube_state, tube_dir)
 
-        if IG(next_node.name, 'stube') == 1 then -- Worst case: another tube, oh no xD
-            local success, next_tube_hpos, next_tube_def, next_tube_type_array, next_tube_prefix =
-                push_items_to_next_tube(next_node, next_pos, tube_state, tube_dir, tube_vpos)
-            if success == true then -- HACK: HACK: I don't know how this works but it does
-                -- So sometimes tubes were randomly going faster than they should??? and this fixed that?
-                next_tube_type_array[next_tube_hpos].updated_at = stube.current_update_time
-            end
-
-            if success == false then
-                ---@diagnostic disable-next-line
-                stube.update_tube(next_tube_hpos, next_tube_def, next_tube_type_array[next_tube_hpos], next_tube_prefix)
-                push_items_to_next_tube(next_node, next_pos, tube_state, tube_dir, tube_vpos)
-                delete_if_empty_state(tube_hpos, tube_state, stubes[prefix])
-            end
-        elseif IG(next_node.name, 'stube_routing_node') == 1 then
-            local def = stube.registered_routing_node[next_node.name]
-            local next_poshash = h(next_pos)
-
-            local state = stube.routing_states[next_node.name][next_poshash]
-            if not state then
-                stube.routing_states[next_node.name][next_poshash] = { items = {}, updated_at = 0 }
-                state = stube.routing_states[next_node.name][next_poshash]
-            end
-
-            local accepted = def.accept(state, tube_state.connections[tube_dir], tube_dir, next_pos)
-            if accepted then tube_state.connections[tube_dir] = nil end
-        elseif IG(next_node.name, 'tubedevice_receiver') == 1 then
-            stube.transfer_items(tube_state, next_node, next_pos, tube_dir)
-        end
+    local sending_side = tube_state.connections[tube_dir]
+    if not sending_side then
+        inter_tube_transport(tube_state, tube_dir, tube_vpos, stube.is_short_tube(this_node.name))
+        return
     end
+
+    if IG(next_node.name, 'stube') == 1 then -- Worst case: another tube, oh no xD
+        local success, next_tube_hpos, next_tube_def, next_tube_type_array, next_tube_prefix =
+            push_items_to_next_tube(next_node, next_pos, tube_state, tube_dir, tube_vpos)
+        if success == true then -- HACK: HACK: I don't know how this works but it does
+            -- So sometimes tubes were randomly going faster than they should??? and this fixed that?
+            next_tube_type_array[next_tube_hpos].updated_at = stube.current_update_time
+        end
+
+        if success == false then
+            ---@diagnostic disable-next-line
+            stube.update_tube(next_tube_hpos, next_tube_def, next_tube_type_array[next_tube_hpos], next_tube_prefix)
+            push_items_to_next_tube(next_node, next_pos, tube_state, tube_dir, tube_vpos)
+            delete_if_empty_state(tube_hpos, tube_state, stubes[prefix])
+        end
+    elseif stube.is_receiver(next_node) then
+        local should_delete =
+            stube.send_item(sending_side, tube_vpos, next_pos, next_node, stube.opposite_wallmounted(tube_dir))
+
+        if sending_side.stack == nil or sending_side.stack:is_empty() then should_delete = true end
+        if should_delete then tube_state.connections[tube_dir] = nil end
+    end
+
     inter_tube_transport(tube_state, tube_dir, tube_vpos, stube.is_short_tube(this_node.name))
 end
 
@@ -268,53 +227,3 @@ function stube.globalstep(dtime)
     end
 end
 core.register_globalstep(stube.globalstep)
-
----@return boolean Success Returns false if it can't
-function stube.add_tubed_item(pos, stack)
-    local hpos = core.hash_node_position(pos)
-    local node = stube.get_or_load_node(pos)
-    if core.get_item_group(node.name, 'stube') == 0 then return false end
-
-    local prefix = stube.get_prefix_tube_name(node.name)
-    local tube_state = stubes[prefix][hpos]
-    if not tube_state then
-        stubes[prefix][hpos] = {
-            connections = {},
-            updated_at = stube.current_update_time,
-        }
-        tube_state = stubes[prefix][hpos]
-    end
-
-    local tube_dir = stube.get_tube_dir(node.name)
-    if tube_state.connections[tube_dir] == nil then
-        tube_state.connections[tube_dir] = { stack = stack }
-        stube.add_or_remove_tubestate_visuals(pos, tube_state)
-        return true
-    else
-        return false
-    end
-end
-
-function stube.tube_input_insert_object(pos, node, stack, vel, owner)
-    local prefix = stube.get_prefix_tube_name(node.name)
-    local all_stubes_of_our_type = stubes[prefix]
-    local hpos = h(pos)
-    local tube_state = all_stubes_of_our_type[hpos]
-    if not tube_state then
-        all_stubes_of_our_type[hpos] = {
-            connections = {},
-            updated_at = stube.current_update_time,
-        }
-        tube_state = all_stubes_of_our_type[hpos]
-    end
-
-    local insert_dir = core.dir_to_wallmounted(-vector.round(vel))
-
-    if tube_state.connections[insert_dir] == nil then
-        tube_state.connections[insert_dir] = { stack = stack, owner = owner }
-        stube.add_or_remove_tubestate_visuals(pos, tube_state)
-        return
-    else
-        return stack
-    end
-end

@@ -1,0 +1,3 @@
+[submodule "luanti_lsp_definitions"]
+	path = luanti_lsp_definitions
+	url = https://github.com/corpserot/luanti_lsp_definitions/

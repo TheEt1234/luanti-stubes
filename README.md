@@ -14,11 +14,11 @@ In-game, Stubes should refer to themselves as just item tubes, but in code/compa
 STubes don't implement their own way of letting nodes accept stube tubed items.  
 The preffered way for a node to accept STube tubed items is using pipeworks, but there will be other ways in the future.
 
-| Name            | Status            | Notes                                                            |
-| --------------- | ----------------- | ---------------------------------------------------------------- |
-| **Pipeworks**   | Mostly compatible | Currently, stube to pipeworks *tube* transport does not exist.   |
-| Tubelib         | Not compatible    | PRs welcome! Although i am unsure if there is demand.            |
-| Others?         | Not compatible    | Let me know if there is anything else worth adding to this table |
+| Name            | Status            | Notes                                                                                      |
+| --------------- | ----------------- | ------------------------------------------------------------------------------------------ |
+| **Pipeworks**   | Fully compatible  | Recommended way to make receivers for STubes. Even supports item input to pipeworks tubes. |
+| Tubelib         | Not compatible    | PRs welcome! Although i am unsure if there is demand.                                      |
+| Others?         | Not compatible    | Let me know if there is anything else worth adding to this table                           |
 
 ### MAJOR INTERNAL IMPROVEMENTS/INTERNAL-ONLY BREAKING CHANGES ARE WELCOME
 

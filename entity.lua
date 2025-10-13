@@ -21,24 +21,49 @@ local function create_visual(pos, stack)
     return core.add_entity(pos, 'stubes:item_visual', stack:to_string())
 end
 
+--- Updates the position visual of an item, if present
+---@param item stube.TubedItem
 ---@param pos vector
----@param tubestate stube.TubeState
-function stube.add_visuals_to_tubestate(pos, tubestate)
-    for dir, connection in pairs(tubestate.connections) do
-        local vdir = core.wallmounted_to_dir(dir)
-        if dir == 6 then vdir = vector.zero() end
-        if not connection.entity then connection.entity = create_visual(vector.add(pos, vdir / 3), connection.stack) end
-    end
+---@param dir integer
+---@return nil
+function stube.update_item_visual(item, pos, dir)
+    if not item.entity then return end
+    item.entity:move_to(stube.get_precise_connection_pos(pos, dir), true)
 end
 
----@param tubestate stube.TubeState
-function stube.remove_visuals_from_tubestate(tubestate)
-    for _, connection in pairs(tubestate.connections) do
-        if connection.entity then
-            connection.entity:remove()
-            connection.entity = nil
+--- Creates a visual of an item
+---@param item stube.TubedItem
+---@param pos vector
+---@param dir integer
+---@return nil
+function stube.create_item_visual(item, pos, dir)
+    if item.entity then return end
+    item.entity = create_visual(stube.get_precise_connection_pos(pos, dir), item.stack)
+end
+
+--- Deletes the visual of an item, if there is one
+---@param item stube.TubedItem
+---@return nil
+function stube.delete_item_visual(item)
+    if not item.entity then return end
+    item.entity:remove()
+    item.entity = nil
+end
+
+--- PERF: The function name is so long to make you not want to use it often
+---
+---@param item stube.TubedItem
+---@param pos vector
+---@param dir integer
+function stube.update_or_create_item_visual(item, pos, dir)
+    if not item.entity then
+        if stube.should_have_visuals(pos) then
+            stube.create_item_visual(item, pos, dir)
+        else
+            return
         end
     end
+    item.entity:move_to(stube.get_precise_connection_pos(pos, dir), true)
 end
 
 local function get_player_positions()
@@ -50,32 +75,40 @@ local function get_player_positions()
 end
 
 --- Adds/removes tubestate visuals depending on if they are actually needed
---- Time complexity: O(amount_of_tubes*amount_of_players) i think, not great
----@param tubestate stube.TubeState
+--- PERF: Time complexity: O(amount_of_tubes*amount_of_players) i think, not great, **but its potential to cause lag has yet to be verified**
+--- Optionally supply player_positions when you are calling this more than two times.
+---
 ---@param pos vector
 ---@param player_positions vector[]?
-function stube.add_or_remove_tubestate_visuals(pos, tubestate, player_positions)
-    if stube.enable_entities == false then return stube.remove_visuals_from_tubestate(tubestate) end
+---@return boolean
+function stube.should_have_visuals(pos, player_positions)
+    if stube.enable_entities == false then return false end
 
     if not player_positions then player_positions = get_player_positions() end
-    local should_add = false
+
     for i = 1, #player_positions do
         local player_position = player_positions[i]
-        if vector.distance(pos, player_position) <= stube.entity_radius then
-            should_add = true
-            break
-        end
+        if vector.distance(pos, player_position) <= stube.entity_radius then return true end
     end
-
-    if should_add then
-        stube.add_visuals_to_tubestate(pos, tubestate)
-    else
-        stube.remove_visuals_from_tubestate(tubestate)
-    end
+    return false
 end
 
 local timer = 0
 local timer_max = stube.entity_creation_globalstep_time
+
+--- JIT FRIENDLY: Put `iterate_items` stuff in here instead of in the globalstep
+--- As FNEW is NYI in luajit; (FNEW = bytecode instruction that is responsible for creating new functions, NYI = not yet implemented)
+--- Translation to english: code creating new functions can't be JIT compiled, so will be a LOT slower (like 10x to 50x or something)
+
+local visual_pos
+local iterate_create_visuals = function(item, dir)
+    stube.create_item_visual(item, visual_pos, dir)
+end
+
+local iterate_remove_visuals = function(item, _)
+    stube.delete_item_visual(item)
+end
+
 -- stube.update updates visuals, this is responsible for adding/deleting them
 function stube.visual_globalstep(dtime)
     timer = timer + dtime
@@ -84,9 +117,33 @@ function stube.visual_globalstep(dtime)
 
     local player_positions = get_player_positions()
 
-    for tube_type, tubes_array in pairs(stube.all_stubes) do
+    -- tubes
+    for _, tubes_array in pairs(stube.all_stubes) do
         for hpos, tube_state in pairs(tubes_array) do
-            stube.add_or_remove_tubestate_visuals(core.get_position_from_hash(hpos), tube_state, get_player_positions())
+            local pos = core.get_position_from_hash(hpos)
+            if stube.should_have_visuals(pos, player_positions) then
+                for dir, item in pairs(tube_state.connections) do
+                    stube.create_item_visual(item, pos, dir)
+                end
+            else
+                for _, item in pairs(tube_state.connections) do
+                    stube.delete_item_visual(item)
+                end
+            end
+        end
+    end
+
+    -- routing devices
+    for routing_type, routing_state_array in pairs(stube.routing_states) do
+        local def = stube.registered_routing_node[routing_type]
+        for hpos, routing_state in pairs(routing_state_array) do
+            local pos = core.get_position_from_hash(hpos)
+            if stube.should_have_visuals(pos, player_positions) then
+                visual_pos = pos
+                def.iterate_items(routing_state, iterate_create_visuals)
+            else
+                def.iterate_items(routing_state, iterate_remove_visuals)
+            end
         end
     end
 end

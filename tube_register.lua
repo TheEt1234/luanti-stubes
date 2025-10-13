@@ -2,7 +2,7 @@
 ---@class stube.TubeDef
 ---@field textures table
 ---@field speed number The amount of time between updates, lower is faster
----@field should_update fun(tube_hpos:integer, tube_state:stube.TubeState, node:core.Node.Get):boolean
+---@field should_update fun(tube_hpos:integer, tube_state:stube.TubeState, node:core.Node.get):boolean
 ---@field get_next_pos_and_node fun(tube_hpos:integer, tube_state:stube.TubeState, dir:integer):vector, core.Node.get
 
 ---@type {[string]: stube.TubeDef }
@@ -180,13 +180,7 @@ function stube.register_tube(name, def, tubedef)
     def.groups = def.groups or {}
     def.groups.stube = 1
 
-    -- pipeworks -> stube compatibility
-    def.groups.tubedevice = 1
-    def.groups.tubedevice_receiver = 1
-    def.tube = {
-        insert_object = stube.tube_input_insert_object,
-        --can_insert = stube.tube_input_can_insert, NYI: TODO:? maybe? i mean who will use this with pipeworks tubes wtf
-    }
+    stube.edit_node_def(name, def)
 
     -- Alias
     core.register_alias(name, name .. '_0000000')

@@ -40,6 +40,7 @@ local mp = core.get_modpath(core.get_current_modname())
 dofile(mp .. '/entity.lua')
 
 dofile(mp .. '/tube_info.lua')
+dofile(mp .. '/receiver_types.lua')
 dofile(mp .. '/tube_placement.lua')
 dofile(mp .. '/tube_register.lua')
 dofile(mp .. '/tube_transport.lua')

@@ -63,3 +63,41 @@ end
 function stube.join_tube_name(split)
     return split.prefix .. '_' .. split.dir .. table.concat(split.connections, '')
 end
+
+-- the order in which i chose the connections was kinda stupid, because it isn't the wallmounted direction
+--
+-- so i have to do this sort of thing instead of just doing connections[wallmounted]=1
+-- This table is {[wallmounted_dir] = stube_connection_index}
+-- stube_connection_index is {[1] = xc, [2] = yc, [3] = zc, [4] = nxc, ...and so on
+-- so we are mapping wallmounted to that, does that make sense? if not make a github issue!
+stube.wallmounted_to_connections_index = {
+    [0] = 2,
+    [1] = 5,
+    [2] = 1,
+    [3] = 4,
+    [4] = 3,
+    [5] = 6,
+}
+
+stube.connections_to_wallmounted = table.key_value_swap(table.copy(stube.wallmounted_to_connections_index))
+
+local memo = {}
+
+---@param wallmounted integer
+function stube.opposite_wallmounted(wallmounted)
+    if memo[wallmounted] then return memo[wallmounted] end
+    memo[wallmounted] = core.dir_to_wallmounted(-core.wallmounted_to_dir(wallmounted))
+    return memo[wallmounted]
+end
+
+---@return ivec
+function stube.tube_state_connection_to_dir(connection)
+    if connection == 6 then
+        return vector.zero() -- The center
+    end
+    return core.wallmounted_to_dir(connection)
+end
+
+function stube.get_precise_connection_pos(pos, connection)
+    return vector.add(pos, stube.tube_state_connection_to_dir(connection) / 3)
+end

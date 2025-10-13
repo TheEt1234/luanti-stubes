@@ -1,34 +1,4 @@
--- Okay so this code is kinda messy? probably better than pipeworks
--- just uh be aware
--- if you don't understand it thats fine, message me (frog) and i could make a comment explaining
-
---- If it's a tube device, and is NOT an stube
-function stube.is_tubedevice(node_name)
-    local reg = core.registered_nodes[node_name]
-    if reg == nil then return false end
-    if reg.tube == nil then return false end
-    if core.get_item_group(node_name, 'stube') == 1 then return false end
-    return true
-end
-
--- pipeworks has a better solution im not doing for the sake of licensing
-function stube.process_pipeworks_connect_sides(connect_sides, neighbor_dir, neighbor_node)
-    local neighbor_facedir = neighbor_node.param2
-    local neighbor_facedir_dir = core.facedir_to_dir(neighbor_facedir)
-    if neighbor_facedir > 23 then neighbor_facedir = 0 end
-    local rotate_by = -vector.dir_to_rotation(neighbor_facedir_dir)
-    if math.floor(neighbor_facedir / 4) ~= 0 and rotate_by.y < -1 then rotate_by.x = -(math.pi / 2) end -- HACK, that i am not going to fix, this was derived from brute force, it allows placing tubes to tubedevices from above work, specifically filter injectors
-    local correct_dir = vector.rotate(neighbor_dir, rotate_by)
-    local wallmounted_dir = core.dir_to_wallmounted(correct_dir)
-
-    local index = (wallmounted_dir == 0 and 'top')
-        or (wallmounted_dir == 1 and 'bottom')
-        or (wallmounted_dir == 2 and 'right')
-        or (wallmounted_dir == 3 and 'left')
-        or (wallmounted_dir == 4 and 'front')
-        or (wallmounted_dir == 5 and 'back')
-    return connect_sides[index] == 1 or connect_sides[index] == true
-end
+-- If you don't understand some code, ****make a github issue about it****! Code should be understandable unlike in other similar item transport projects.
 
 local function has_no_connections(connections)
     for i = 1, 6 do
@@ -36,20 +6,6 @@ local function has_no_connections(connections)
     end
     return true
 end
-
--- the order in which i chose the connections was kinda stupid, because it isn't the wallmounted direction
--- so i have to do this sort of thing instead of just doing connections[wallmounted]=1
--- This table is {[wallmounted] = STube connection}
-stube.wallmounted_to_connections_index = {
-    [0] = 2,
-    [1] = 5,
-    [2] = 1,
-    [3] = 4,
-    [4] = 3,
-    [5] = 6,
-}
-
-local connections_to_wallmounted = table.key_value_swap(table.copy(stube.wallmounted_to_connections_index))
 
 local function make_connection(connections, wallmounted_dir, remove_connection)
     local set_to = 1
@@ -125,6 +81,7 @@ function stube.place_tube(name, pos, tube_dir, pointed_thing, sneaking)
         0,
     }
 
+    --- Connect any neighboring STubes that are pointing to us
     for neighbor_dir_number = 0, 5 do
         local neighbor_dir = core.wallmounted_to_dir(neighbor_dir_number)
         local neighbor_pos = vector.add(pos, neighbor_dir)
@@ -138,50 +95,26 @@ function stube.place_tube(name, pos, tube_dir, pointed_thing, sneaking)
         end
     end
 
-    --- Automatically connect any tubedevices or routing blocks
+    --- Automatically connect any receivers to our tube, unless we are sneaking
     if not sneaking then
         for i = 0, 5 do
             local neighbor_dir = core.wallmounted_to_dir(i)
             local neighbor_pos = vector.add(pos, neighbor_dir)
             local neighbor_node = stube.get_or_load_node(neighbor_pos)
 
-            local should_connect = false
-            if stube.is_tubedevice(neighbor_node.name) == true then
-                local connect_sides = core.registered_nodes[neighbor_node.name].tube.connect_sides
-                if connect_sides then
-                    should_connect = stube.process_pipeworks_connect_sides(connect_sides, -neighbor_dir, neighbor_node)
-                else
-                    should_connect = true
-                end
-            elseif core.get_item_group(neighbor_node.name, 'stube_routing_node') == 1 then
-                should_connect = true
-            end
-            if should_connect then make_connection(connections, i) end
+            if stube.can_connect_to_receiver(neighbor_node, i, true) then make_connection(connections, i) end
         end
-    else -- Only connect the tubedevice we are sneaking at
+    else -- Only connect the receiver we are sneaking at
         local under_node = stube.get_or_load_node(pointed_thing.under)
         local under_dir = vector.subtract(pointed_thing.above, pointed_thing.under)
+        local wallmounted_dir = core.dir_to_wallmounted(under_dir)
 
-        local should_connect = false
-        if stube.is_tubedevice(under_node.name) == true then
-            local connect_sides = core.registered_nodes[under_node.name].tube.connect_sides
-            if connect_sides then
-                should_connect = stube.process_pipeworks_connect_sides(connect_sides, under_dir, under_node)
-            else
-                should_connect = true
-            end
-        elseif core.get_item_group(under_node.name, 'stube_routing_node') == 1 then
-            should_connect = true
-        end
-
-        if should_connect then
-            make_connection(
-                connections,
-                core.dir_to_wallmounted(vector.subtract(pointed_thing.under, pointed_thing.above))
-            )
+        if stube.can_connect_to_receiver(under_node, wallmounted_dir, true) then
+            make_connection(connections, stube.opposite_wallmounted(wallmounted_dir))
         end
     end
 
+    --- Count the connections
     local no_connections = true
     local amount_of_connections = 0
     for i = 1, 6 do
@@ -191,10 +124,10 @@ function stube.place_tube(name, pos, tube_dir, pointed_thing, sneaking)
         end
     end
 
-    -- the square/no connections tube
+    -- the square/no connections tube, only one exists
     if no_connections then tube_dir = 0 end
 
-    -- if a tube is not straight, make a connection
+    -- if a tube is not straight, make a connection to its dir
     -- Basically, makes short tubes whenever possible
     -- and maintain a connection to things which interact with tubes, that is important
 
@@ -206,7 +139,7 @@ function stube.place_tube(name, pos, tube_dir, pointed_thing, sneaking)
     if
         not (
             ((amount_of_connections == 1 and connections[straight_tube_index] == 1) or amount_of_connections == 0) -- if the tube is straight or a box
-            and stube.is_tubedevice(tube_pointing_to_node.name) == false
+            and not stube.can_connect_to_receiver(tube_pointing_to_node, tube_dir, false) -- and not pointing to anything important
         )
     then
         make_connection(connections, tube_dir)
@@ -250,7 +183,7 @@ function stube.update_placement_single(pos)
 
     for i = 1, 6 do
         local connection = split.connections[i]
-        local connection_dir = connections_to_wallmounted[i]
+        local connection_dir = stube.connections_to_wallmounted[i]
         local connection_dirv = core.wallmounted_to_dir(connection_dir)
         local connection_pos = pos + connection_dirv
 
@@ -263,8 +196,7 @@ function stube.update_placement_single(pos)
             if
                 not (
                     ig(connection_node.name, 'stube') == 1
-                    or stube.is_tubedevice(connection_node.name) == true
-                    or ig(connection_node.name, 'stube_routing_node') == 1
+                    or stube.is_receiver(connection_node) == true -- Not using stube.can_connect_to_receiver because that can be a bit expensive
                 )
             then
                 split.connections[i] = 0
@@ -303,18 +235,7 @@ function stube.update_placement_single(pos)
         local dir = core.wallmounted_to_dir(split.dir)
         local next_pos = pos + dir
         local next_node = stube.get_or_load_node(next_pos)
-        if stube.is_tubedevice(next_node.name) then
-            local connect_sides = core.registered_nodes[next_node.name].tube.connect_sides
-            local should_connect = true
-            if connect_sides then
-                should_connect = stube.process_pipeworks_connect_sides(
-                    core.registered_nodes[next_node.name].tube.connect_sides,
-                    dir,
-                    next_node
-                )
-            end
-            if should_connect then make_connection(split.connections, split.dir) end
-        elseif core.get_item_group(next_node.name, 'stube_routing_node') == 1 then
+        if stube.can_connect_to_receiver(next_node, split.dir, false) then
             make_connection(split.connections, split.dir)
         end
     end
