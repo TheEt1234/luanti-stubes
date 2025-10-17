@@ -18,6 +18,10 @@ stube = {
 
     -- Sets the size of the tubes. Each tube must be the same size.
     tube_size = 3 / 16,
+
+    --- The amount of time it takes to update stube's default routing nodes in seconds
+    --- The number chosen (1/3) was partly because of game design
+    default_routing_node_speed = 1 / 3,
 }
 
 --- This function is guaranteed to get a node
@@ -52,4 +56,5 @@ dofile(mp .. '/routing_node_register.lua')
 
 local default_nodes_path = mp .. '/default_nodes'
 dofile(default_nodes_path .. '/tubes.lua')
-dofile(default_nodes_path .. '/routing_nodes.lua')
+dofile(default_nodes_path .. '/junction.lua')
+dofile(default_nodes_path .. '/overflow_gates.lua')

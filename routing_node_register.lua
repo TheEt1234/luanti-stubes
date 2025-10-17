@@ -21,9 +21,6 @@ stube.registered_routing_node = {}
 ---@type table<string, table<integer, stube.RoutingState>>
 stube.routing_states = {}
 
----FIXME: Also remove routing states if they are empty, thats important yknwoww
---- FIXME: add pipeworks tubedevice support
----
 ---@param routing_def stube.RoutingNodeDef
 ---@param def core.NodeDef
 function stube.register_routing_node(name, def, routing_def)
@@ -72,6 +69,7 @@ function stube.remove_bad_routing_states(type, state, hpos, node)
         def.iterate_items(state, function(item, dir)
             local item_pos = pos
             if dir then item_pos = stube.get_precise_connection_pos(pos, dir) end
+            stube.delete_item_visual(item)
             core.add_item(item_pos, item.stack)
         end)
     end

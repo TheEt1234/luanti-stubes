@@ -73,9 +73,6 @@ local function inter_tube_transport(tube_state, tube_dir, tube_vpos, is_short, a
         move_connection(tube_state, 6, tube_dir, tube_vpos)
         inter_tube_transport(tube_state, tube_dir, tube_vpos, is_short, true) -- May look worrysome to some, but makes sense if you think about it
     end
-
-    -- FIXME: Drop items which are in impossible places
-    -- Do that after verifying they can't get there naturally
 end
 
 --- 1 item/update

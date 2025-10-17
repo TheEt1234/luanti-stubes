@@ -24,9 +24,6 @@ The preffered way for a node to accept STube tubed items is using pipeworks, but
 
 If you don't think therere is no need for internal restructuring/breaking changes, make an issue.
 
-Currently i am interested in major improvements because:
-- the stubes/routing block split is kinda strange? i dunno if stubes sohuld just
-
 ## Performance
 - Tubed item visuals which aren't near the player aren't shown (so that gets rid of the need to perform costly `move_to` calls)
 - It should be able to handle 10 000 items easily

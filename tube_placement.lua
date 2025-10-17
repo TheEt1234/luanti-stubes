@@ -300,13 +300,3 @@ function stube.default_tube_punch(pos, node, puncher, pointed_thing)
     end
     stube.update_placement(pos)
 end
-
-if core.global_exists 'pipeworks' then -- hijack pipeworks for our benefit nyehehe
-    local old_scan_for_tube_objects = pipeworks.scan_for_tube_objects -- this runs when ANY PIPEWORKS TUBE OR TUBEDEVICE GETS PLACED, really convenient
-
-    ---@diagnostic disable-next-line: duplicate-set-field
-    function pipeworks.scan_for_tube_objects(pos)
-        stube.update_placement(pos)
-        return old_scan_for_tube_objects(pos)
-    end
-end

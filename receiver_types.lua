@@ -68,7 +68,13 @@ stube.register_receiver_type {
     is_receiver = function(node)
         return core.get_item_group(node.name, 'stube') == 1
     end,
-    can_connect_to_receiver = function(node, dir) -- not used
+    can_connect_to_receiver = function(node, dir, as_output)
+        if not as_output then
+            return (
+                (core.get_item_group(node.name, 'stube') == 1)
+                and (stube.opposite_wallmounted(stube.get_tube_dir(node.name)) ~= dir)
+            ) -- tube must not be pointing away
+        end
         return core.get_item_group(node.name, 'stube') == 1
     end,
 
@@ -141,6 +147,7 @@ end
 local function is_tubedevice(nodename)
     local reg = core.registered_nodes[nodename]
     if not reg then return false end
+    if core.get_item_group(nodename, 'stube') == 1 then return false end
     if reg.tubelike == 1 then return false end -- If it's a pipeworks tube, that's tootally different
     if reg.tube then return true end
     return false
@@ -193,22 +200,32 @@ stube.register_receiver_type {
         local old_after_place = def.after_place_node
         def.after_place_node = function(...)
             pipeworks.after_place(...)
-            return old_after_place(...)
+            if old_after_place then return old_after_place(...) end
         end
 
         local old_after_dig = def.oafter_dig_node
         def.after_dig_node = function(...)
             pipeworks.after_dig(...)
-            return old_after_dig(...)
+            if old_after_dig then return old_after_dig(...) end
         end
 
         def.tube = {
             insert_object = pipeworks_insert_object,
-            can_insert = nil, -- TODO: Not Yet Implemented, does not matter much
+            can_insert = nil, -- Not Yet Implemented, does not matter much
             connect_sides = { front = 1, back = 1, left = 1, right = 1, top = 1, bottom = 1 },
         }
     end,
 }
+
+if core.global_exists 'pipeworks' then -- hijack pipeworks for our benefit nyehehe
+    local old_scan_for_tube_objects = pipeworks.scan_for_tube_objects -- this runs when ANY PIPEWORKS TUBE OR TUBEDEVICE GETS PLACED, really convenient for me :)
+
+    ---@diagnostic disable-next-line: duplicate-set-field
+    function pipeworks.scan_for_tube_objects(pos)
+        stube.update_placement(pos)
+        return old_scan_for_tube_objects(pos)
+    end
+end
 
 --- Pipeworks tubes have a few ways to identify them:
 --- groups: tube=1, tubedevice = 1
