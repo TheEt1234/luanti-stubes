@@ -8,24 +8,30 @@ local ids = {}
 local timer = 0
 local timer_max = 0.25
 
-function stube.hud_update(player)
-    local player_name = player:get_player_name()
-    local tube_pos, tube_node
+local look_max = 40
 
+---@param filter fun(node:core.Node.get, pointed:core.PointedThing):boolean
+---@return ivec?, core.PointedThing?, core.Node.get?
+function stube.get_player_pointing(player, filter)
     local look_dir = player:get_look_dir()
     local eye_pos = player:get_pos()
     eye_pos.y = eye_pos.y + (player:get_properties().eye_height or 0)
 
-    local ray = core.raycast(eye_pos, vector.add(eye_pos, vector.multiply(look_dir, 5)), false, false)
+    local ray = core.raycast(eye_pos, vector.add(eye_pos, vector.multiply(look_dir, look_max)), false, false)
     for pointed_thing in ray do
         if pointed_thing.type == 'node' then
             local node = core.get_node(pointed_thing.under)
-            if core.get_item_group(node.name, 'stube') == 1 then
-                tube_pos, tube_node = pointed_thing.under, node
-                break
-            end
+            if filter(node, pointed_thing) then return pointed_thing.under, pointed_thing, node end
         end
     end
+end
+
+function stube.hud_update(player)
+    local player_name = player:get_player_name()
+
+    local tube_pos, _, tube_node = stube.get_player_pointing(player, function(node) -- rip performance
+        return core.get_item_group(node.name, 'stube') == 1
+    end)
 
     if ids[player_name] then
         for _, id in pairs(ids[player_name]) do

@@ -227,6 +227,8 @@ if core.global_exists 'pipeworks' then -- hijack pipeworks for our benefit nyehe
     end
 end
 
+-- Pipeworks **tube** compatibility (yes it has to be different) (yes this is pointless)
+
 --- Pipeworks tubes have a few ways to identify them:
 --- groups: tube=1, tubedevice = 1
 --- def: def.tubelike = 1, def.tube ~= nil

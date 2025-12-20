@@ -1,11 +1,12 @@
 # Stubes
 
-An attempt to be luanti's best item transport.
+~~An attempt to be luanti's best item transport.~~
+### After 2 months: Turns out, perfectionism is how you *kill* a project... some non-trivial visual bugs that sound more like a leetcode problem are okay.
 
 I am using 32x32 textures for the tubes, because i could not fit a recognizable arrow into a 32x32 texture without making the node bigger.
 I am also doing the textures in the style of Skyblock Zero. PRs for textures for other games are welcome.
 
-This mod was inspired by pipeworks and by mindustry.
+This mod was inspired by [pipeworks](http://github.com/mt-mods/pipeworks) and by [mindustry](https://github.com/Anuken/Mindustry).
 
 ## Terminology
 In-game, Stubes should refer to themselves as just item tubes, but in code/comparisons they should be referred to as stubes to distinguish them from other implementations of item tubes.

@@ -1,8 +1,7 @@
 --- TODO?: Unified dyes support
---- DO AFTER ISSUE: #1 HAS BEEN RESOLVED
 
 stube.register_tube('stubes:basic_tube', {
-    paramtype2 = 'wallmounted',
+    paramtype2 = 'color',
     description = 'Basic Item Tube',
     use_texture_alpha = 'blend',
     groups = { matter = 1 },

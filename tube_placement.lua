@@ -13,8 +13,11 @@ local function make_connection(connections, wallmounted_dir, remove_connection)
     connections[stube.wallmounted_to_connections_index[wallmounted_dir]] = set_to
 end
 
-function stube.connect_tubes_to(pos, dir, pointed_thing, sneaking)
+---@return ({[1]:ivec, [2]:core.Node.set})[]
+function stube.get_connect_tubes_to(pos, dir, pointed_thing, sneaking)
     pos = vector.copy(pos) -- guaranteed to be a vector
+
+    local modifications = {} -- if just previewing
 
     -- Connect to our tube if it is pointing to it
     for idir = 0, 5 do
@@ -32,7 +35,7 @@ function stube.connect_tubes_to(pos, dir, pointed_thing, sneaking)
                 if has_no_connections(split.connections) then split.dir = connection_dir end
                 make_connection(split.connections, connection_dir)
 
-                core.set_node(neighbor_pos, { name = stube.join_tube_name(split) })
+                modifications[#modifications + 1] = { neighbor_pos, { name = stube.join_tube_name(split) } }
             end
         end
     end
@@ -46,7 +49,7 @@ function stube.connect_tubes_to(pos, dir, pointed_thing, sneaking)
             local split = stube.split_tube_name(node.name)
             split.dir = dir
             make_connection(split.connections, dir)
-            core.set_node(pointed_thing.under, { name = stube.join_tube_name(split) })
+            modifications[#modifications + 1] = { pointed_thing.under, { name = stube.join_tube_name(split) } }
         end
     end
 
@@ -62,13 +65,21 @@ function stube.connect_tubes_to(pos, dir, pointed_thing, sneaking)
 
             make_connection(split.connections, split.dir)
             make_connection(split.connections, core.dir_to_wallmounted(pos - front_pos))
-            core.set_node(front_pos, { name = stube.join_tube_name(split) })
+            modifications[#modifications + 1] = { front_pos, { name = stube.join_tube_name(split) } }
         end
     end
+    return modifications
 end
 
-function stube.place_tube(name, pos, tube_dir, pointed_thing, sneaking)
-    stube.connect_tubes_to(pos, tube_dir, pointed_thing, sneaking)
+---@see stube.place_tube
+---@return core.Node.get
+function stube.get_placed_tube_node(tube_name, pos, tube_dir, pointed_thing, sneaking, just_preview)
+    if not just_preview then
+        local set_nodes = stube.get_connect_tubes_to(pos, tube_dir, pointed_thing, sneaking)
+        for _, v in ipairs(set_nodes) do
+            core.set_node(v[1], v[2])
+        end
+    end
 
     local connections = {
         -- X, Y, Z
@@ -81,7 +92,7 @@ function stube.place_tube(name, pos, tube_dir, pointed_thing, sneaking)
         0,
     }
 
-    --- Connect any neighboring STubes that are pointing to us
+    --- Connect to any neighboring STubes that are pointing to us
     for neighbor_dir_number = 0, 5 do
         local neighbor_dir = core.wallmounted_to_dir(neighbor_dir_number)
         local neighbor_pos = vector.add(pos, neighbor_dir)
@@ -154,9 +165,24 @@ function stube.place_tube(name, pos, tube_dir, pointed_thing, sneaking)
         local front_node = stube.get_or_load_node(front_pos)
         if core.get_item_group(front_node.name, 'stube') == 1 then make_connection(connections, tube_dir) end
     end
-
-    core.set_node(pos, { name = stube.get_prefix_tube_name(name) .. '_' .. tube_dir .. table.concat(connections) })
+    return { name = stube.get_prefix_tube_name(tube_name) .. '_' .. tube_dir .. table.concat(connections) }
 end
+
+function stube.place_tube(name, pos, tube_dir, pointed_thing, sneaking)
+    core.set_node(pos, stube.get_placed_tube_node(name, pos, tube_dir, pointed_thing, sneaking))
+end
+
+-- feels like counting in binary
+local corners = {
+    vector.new(1, 1, 1),
+    vector.new(1, 1, -1),
+    vector.new(1, -1, 1),
+    vector.new(1, -1, -1),
+    vector.new(-1, 1, 1),
+    vector.new(-1, 1, -1),
+    vector.new(-1, -1, 1),
+    vector.new(-1, -1, -1),
+}
 
 -- When an stube is broken, or something near it was, this should get called
 -- It cleans up garbage connections (e.g. connection to nowhere, that isn't needed)
@@ -171,6 +197,11 @@ function stube.update_placement(pos)
     stube.update_placement_single(pos)
     for i = 0, 5 do
         stube.update_placement_single(pos + core.wallmounted_to_dir(i))
+    end
+
+    -- also for corner cases
+    for i = 1, #corners do
+        stube.update_placement_single(pos + corners[i])
     end
 end
 

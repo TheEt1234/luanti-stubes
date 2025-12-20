@@ -49,6 +49,7 @@ dofile(mp .. '/tube_placement.lua')
 dofile(mp .. '/tube_register.lua')
 dofile(mp .. '/tube_transport.lua')
 dofile(mp .. '/tube_hud.lua')
+dofile(mp .. '/tube_placement_preview.lua')
 
 dofile(mp .. '/routing_node_register.lua')
 

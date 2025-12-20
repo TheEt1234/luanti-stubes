@@ -28,7 +28,7 @@ local function tube_nodebox(len, stretch_to)
 end
 
 --- e* -> expected
---- so edir = expected dir
+--- so return edir == expected dir
 local function short_check(dir, xc, yc, zc, nxc, nyc, nzc, edir, exc, eyc, ezc, enxc, enyc, enzc)
     return dir == edir and xc == exc and yc == eyc and zc == ezc and nxc == enxc and nyc == enyc and nzc == enzc
 end
@@ -52,8 +52,7 @@ local function register_single_tube(name, def, tubedef, dir, xc, yc, zc, nxc, ny
         or dir == 4 and zc ~= 1
         or dir == 5 and nzc ~= 1
     then
-        -- i am horrible at working with large amounts of variables xD
-        -- good luck understanding this hehe
+        -- good luck understanding this
         if
             short_check(dir, xc, yc, zc, nxc, nyc, nzc, 0, 0, 0, 0, 0, 1, 0)
             or short_check(dir, xc, yc, zc, nxc, nyc, nzc, 1, 0, 1, 0, 0, 0, 0)
@@ -72,16 +71,18 @@ local function register_single_tube(name, def, tubedef, dir, xc, yc, zc, nxc, ny
 
     name = name .. '_' .. dir .. xc .. yc .. zc .. nxc .. nyc .. nzc
     if visible == false then
-        def.description = def.description
-            .. table.concat { ', state: ', '\n' }
-            .. table.concat { 'short: ', tostring(is_short), '\n' }
-            .. table.concat { 'dir: ', dir, '\n' }
-            .. table.concat { 'xc: ', xc, '\n' }
-            .. table.concat { 'yc: ', yc, '\n' }
-            .. table.concat { 'zc: ', zc, '\n' }
-            .. table.concat { 'nxc: ', nxc, '\n' }
-            .. table.concat { 'nyc: ', nyc, '\n' }
-            .. table.concat { 'nzc: ', nzc, '\n' }
+        def.description = table.concat {
+            def.description,
+            table.concat { ', state: ', '\n' },
+            table.concat { 'short: ', tostring(is_short), '\n' },
+            table.concat { 'dir: ', dir, '\n' },
+            table.concat { 'xc: ', xc, '\n' },
+            table.concat { 'yc: ', yc, '\n' },
+            table.concat { 'zc: ', zc, '\n' },
+            table.concat { 'nxc: ', nxc, '\n' },
+            table.concat { 'nyc: ', nyc, '\n' },
+            table.concat { 'nzc: ', nzc, '\n' },
+        }
     end
 
     local nodebox = { type = 'fixed', fixed = {} }
