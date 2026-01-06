@@ -5,7 +5,7 @@ core.register_entity('stubes:item_visual', {
         static_save = false,
 
         pointable = false,
-        visual = 'wielditem',
+        visual = 'item',
         visual_size = { x = stube.tube_size - 0.001, y = stube.tube_size - 0.001 }, -- prevent z-fighting
         glow = 1,
     },

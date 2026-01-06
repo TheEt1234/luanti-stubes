@@ -8,7 +8,7 @@ local ids = {}
 local timer = 0
 local timer_max = 0.25
 
-local look_max = 40
+local look_max = 5 -- Ideally, this would be calculated based on the tool that the player is holding
 
 ---@param filter fun(node:core.Node.get, pointed:core.PointedThing):boolean
 ---@return ivec?, core.PointedThing?, core.Node.get?

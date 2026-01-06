@@ -317,7 +317,7 @@ function stube.tube_after_place(pos, placer, stack, pointed)
 end
 
 -- Change the direction to the one we are pointing to
--- Needs sneak+punch
+-- On sneak+punch
 function stube.default_tube_punch(pos, node, puncher, pointed_thing)
     if core.is_protected(pos, puncher) then
         core.record_protection_violation(pos, puncher)
@@ -328,6 +328,11 @@ function stube.default_tube_punch(pos, node, puncher, pointed_thing)
         split.dir = core.dir_to_wallmounted(pointed_thing.above - pointed_thing.under)
         split.connections[stube.wallmounted_to_connections_index[split.dir]] = 1
         core.set_node(pos, { name = stube.join_tube_name(split) })
+        stube.update_placement(pos)
+        local set_nodes = stube.get_connect_tubes_to(pos, split.dir, pointed_thing, false)
+        for _, v in ipairs(set_nodes) do
+            core.set_node(v[1], v[2])
+        end
     end
     stube.update_placement(pos)
 end

@@ -22,6 +22,20 @@ stube = {
     --- The amount of time it takes to update stube's default routing nodes in seconds
     --- The number chosen (1/3) was partly because of game design
     default_routing_node_speed = 1 / 3,
+
+    -- If it should save/load items
+    -- If this is set to false, it will remove the existing stube_data file
+    should_save_items = true,
+
+    -- The location for item data
+    -- By default, world path + "stube_data"
+    -- When it is corrupted or if it cannot be read, and `debug` mode is turned off, the file will be moved to "stube_data.unreadable.old"
+    -- It is not wise to restore this on a public server, even if you somehow make it readable
+    save_file_location = core.get_worldpath() .. '/stube_data',
+
+    -- if stubes is still experimental
+    -- this means stubes wont appear in the creative inventory
+    experimental = true,
 }
 
 --- This function is guaranteed to get a node
@@ -59,3 +73,5 @@ local default_nodes_path = mp .. '/default_nodes'
 dofile(default_nodes_path .. '/tubes.lua')
 dofile(default_nodes_path .. '/junction.lua')
 dofile(default_nodes_path .. '/overflow_gates.lua')
+
+dofile(mp .. '/save_load_items.lua')

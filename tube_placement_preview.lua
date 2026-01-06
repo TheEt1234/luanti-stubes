@@ -22,7 +22,7 @@ core.register_entity('stubes:tube_placement_preview', {
 --- they all get deleted the next time a new preview is requested
 local preview_entities = {}
 
-local is_air = function(node)
+local is_not_air = function(node)
     local reg = (core.registered_nodes[node.name] or {})
     return node.name ~= 'air' and reg.air_equivalent ~= 1 and reg.drawtype ~= 'airlike'
 end
@@ -41,9 +41,14 @@ function stube.tube_preview_globalstep(dtime)
     for _, player in ipairs(core.get_connected_players()) do
         local wielded_item = player:get_wielded_item()
         if core.get_item_group(wielded_item:get_name(), 'stube') == 1 then
-            local target_pos, target_pointed, target_node = stube.get_player_pointing(player, is_air)
+            local target_pos, target_pointed, target_node = stube.get_player_pointing(player, is_not_air)
 
-            if target_pos and target_pointed and target_node and is_air(target_node) then
+            if
+                target_pos
+                and target_pointed
+                and target_node
+                and not is_not_air(core.get_node(target_pointed.above))
+            then
                 target_pos = target_pointed.above
                 local face = vector.subtract(target_pointed.above, target_pointed.under)
                 local dir = core.dir_to_wallmounted(face)

@@ -50,7 +50,7 @@ end
 local gate_size = 0.5 - 0.0001
 stube.register_routing_node('stubes:overflow_gate', {
     description = 'Overflow Gate',
-    groups = { stube_routing_node = 1 },
+    groups = { stube_routing_node = 1, not_in_creative_inventory = stube.experimental and 1 or 0 },
 
     -- visuals:
     tiles = { { name = 'stube_junction.png', backface_culling = false } },
