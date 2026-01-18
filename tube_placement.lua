@@ -319,8 +319,9 @@ end
 -- Change the direction to the one we are pointing to
 -- On sneak+punch
 function stube.default_tube_punch(pos, node, puncher, pointed_thing)
-    if core.is_protected(pos, puncher) then
-        core.record_protection_violation(pos, puncher)
+    local name = puncher:get_player_name()
+    if core.is_protected(pos, name) then
+        core.record_protection_violation(pos, name)
         return
     end
     if puncher and puncher:get_player_control().sneak then
